@@ -2,11 +2,18 @@
 import { useBase64, useDropZone } from "@vueuse/core";
 import { ref } from "vue";
 const dropzoneEl = ref<HTMLElement | null>(null);
-const file = ref();
+const file = ref<{ name: string; size: number; type: string }[]>([]);
 const { base64: url } = useBase64(file);
 const { isOverDropZone } = useDropZone(dropzoneEl, (files) => {
   if (!files) return;
-  file.value = files[0];
+  file.value = [];
+  if (files) {
+    file.value = files.map((file) => ({
+      name: file.name,
+      size: file.size,
+      type: file.type,
+    }));
+  }
   console.log(file.value);
 });
 function onFileChange(e: any) {
@@ -14,7 +21,7 @@ function onFileChange(e: any) {
   console.log(file.value);
 }
 function reset() {
-  file.value = null;
+  file.value = [];
 }
 </script>
 
@@ -29,7 +36,7 @@ function reset() {
     }"
     style="width: 300px; height: 200px; background: #3332; position: relative"
   >
-    <div class="m-auto opacity-50">Drop a image over or select</div>
+    <div class="m-auto opacity-50">Drop in an image or select</div>
     <div v-if="url" class="absolute left-0 top-0 bottom-0 right-0">
       <img :src="url" class="h-full w-full object-cover" />
     </div>
