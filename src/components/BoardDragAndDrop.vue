@@ -51,11 +51,11 @@ watch(columns, () => {
       :list="columns"
       group="columns"
       item-key="id"
-      class="flex overflow-x-auto flex-grow-0 flex-shrink-0"
+      class="flex overflow-x-auto flex-grow-0 flex-shrink-0 pb-8"
     >
       <template #item="{ element: column }">
         <div
-          class="column bg-gray-100 flex flex-col justify-between rounded-lg px-3 py-3 rounded mr-4 w-[300px]"
+          class="column bg-gray-100 flex flex-col justify-between rounded-lg px-3 py-3 rounded mr-4 w-[300px] hover-card"
         >
         <div>
             <h3>{{ column.title }}</h3>

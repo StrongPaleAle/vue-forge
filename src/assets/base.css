@@ -1,3 +1,20 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+.sortable-chosen{
+    opacity: 0.3;
+}
+.hover-card{
+    @apply transition-all duration-200 ease-in-out;
+}
+.hover-card::after{
+    content: "";
+    @apply absolute -z-[1] inset-0 shadow-xl transition-all duration-200 ease-in-out opacity-0;
+}
+.hover-card:hover{
+    @apply -translate-y-1;
+}
+.hover-card:hover:after{
+    @apply opacity-100;
+}

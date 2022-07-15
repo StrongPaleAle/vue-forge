@@ -7,7 +7,7 @@ const props = defineProps<{
 </script>
 
 <template>
-  <div class="p-5 bg-white">
+  <div class="p-5 bg-white hover-card">
     {{ task }}
   </div>
 </template>
