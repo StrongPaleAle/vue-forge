@@ -5,7 +5,6 @@ import { useAlerts } from "@/stores/alerts";
 //import AppImageDropzone from "../../components/AppImageDropzone.vue";
 import { useRouter } from "vue-router";
 
-
 const alerts = useAlerts();
 const router = useRouter();
 // Define Props
@@ -17,26 +16,28 @@ const { id: boardId } = toRefs(props);
 const board = ref({
   id: boardId?.value || "1",
   title: "Let's have an amazing time at Vue.js forge!! 🍍",
-  order: JSON.stringify([
-    { id: "1", title: "backlog 🌴", taskIds: ["1", "2"] },
-  ]),
+  order: JSON.stringify([{ id: "1", title: "backlog 🌴", taskIds: ["1", "2"] }]),
 });
 const tasks = ref<Partial<Task>[]>([
-  { id: "1", title: "Code like mad people!" },
-  { id: "2", title: "Push clean code" },
+  {
+    id: "1",
+    title: "Code like mad people!",
+    description: "Race against the clock",
+    dueAt: new Date(),
+  },
+  {
+    id: "2",
+    title: "Push clean code",
+    description: "Test and review code",
+    dueAt: new Date(),
+  },
 ]);
-const updateBoard = (b) => {
+const updateBoard = (b: { id: string; title: string; order: string }) => {
   board.value = b;
   alerts.success("Board updated!");
 };
-
 </script>
 
 <template>
-<BoardDragAndDrop
-      :tasks="tasks"
-      :board="board"
-      @update="updateBoard"
-      
-    />
+  <BoardDragAndDrop :tasks="tasks" :board="board" @update="updateBoard" />
 </template>
