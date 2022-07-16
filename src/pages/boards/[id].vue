@@ -4,6 +4,7 @@ import type { Task, Board } from "@/types";
 import { useAlerts } from "@/stores/alerts";
 //import AppImageDropzone from "../../components/AppImageDropzone.vue";
 import { useRouter } from "vue-router";
+import { v4 as uuidv4 } from "uuid";
 
 const alerts = useAlerts();
 const router = useRouter();
@@ -32,6 +33,18 @@ const tasks = ref<Partial<Task>[]>([
     dueAt: new Date(),
   },
 ]);
+
+const addTask = async (task: Task) => {
+  return new Promise((resolve, reject) => {
+    const taskWithId = {
+      ...task,
+      id: uuidv4(),
+    };
+    tasks.value.push(taskWithId);
+    resolve(taskWithId);
+  });
+};
+
 const updateBoard = (b: { id: string; title: string; order: string }) => {
   board.value = b;
   alerts.success("Board updated!");
@@ -39,5 +52,10 @@ const updateBoard = (b: { id: string; title: string; order: string }) => {
 </script>
 
 <template>
-  <BoardDragAndDrop :tasks="tasks" :board="board" @update="updateBoard" />
+  <BoardDragAndDrop
+    :tasks="tasks"
+    :board="board"
+    @update="updateBoard"
+    :addTask="addTask"
+  />
 </template>
