@@ -13,7 +13,9 @@
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore"
   },
   "dependencies": {
+    "@apollo/client": "^3.6.9",
     "@vue/apollo-composable": "^4.0.0-alpha.18",
+    "graphql": "^16.5.0",
     "graphql-tag": "^2.12.6",
     "lodash-es": "^4.17.21",
     "unplugin-vue-components": "^0.20.1",
@@ -36,6 +38,7 @@
     "@progress/kendo-vue-layout": "^3.4.0",
     "@progress/kendo-vue-notification": "^3.4.0",
     "@progress/kendo-vue-popup": "^3.4.0",
+    "@rollup/plugin-graphql": "^1.1.0",
     "@rushstack/eslint-patch": "^1.1.0",
     "@types/jsdom": "^16.2.14",
     "@types/lodash-es": "^4.17.6",
