@@ -23,8 +23,16 @@ See [Vite Configuration Reference](https://vitejs.dev/config/).
 
 ## Project Setup
 
+
+
 ```sh
 npm install
+```
+
+## API configuration
+
+```sh
+echo VITE_API_ENDPOINT=\"YOUR_API_URL\" >> .env
 ```
 
 ### Compile and Hot-Reload for Development
