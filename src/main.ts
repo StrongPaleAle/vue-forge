@@ -5,6 +5,8 @@ import router from "./router";
 import "@/assets/base.css";
 import "@progress/kendo-theme-default/dist/all.css";
 
+const apiEndponit = import.meta.env.VITE_API_ENDPOINT
+
 import {
   ApolloClient,
   createHttpLink,
@@ -17,7 +19,7 @@ import { DefaultApolloClient } from "@vue/apollo-composable";
 // HTTP connection to the API
 const httpLink = createHttpLink({
   // You should use an absolute URL here
-  uri: "https://uk.api.8base.com/cl5hs0p9f08p309l5c70w358g",
+  uri: apiEndponit,
 });
 
 // Cache implementation
