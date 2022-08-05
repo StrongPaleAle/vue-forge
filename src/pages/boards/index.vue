@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { useAlerts } from "@/stores/alerts";
-import type { Board } from "@/types";
+
 import { useMutation, useQuery } from "@vue/apollo-composable";
-import { ref, computed } from "vue";
+import { computed } from "vue";
 import boardsQuery from "@/graphql/queries/boards.query.gql";
 import createBoardMutation from "@/graphql/mutations/createBoard.mutation.gql";
 
@@ -29,7 +29,7 @@ const { mutate: createBoard } = useMutation(createBoardMutation, () => ({
 
 const newBoardPayload = {
   data: {
-    title: "Test Board 3",
+    title: "New Board",
   },
 };
 </script>
@@ -44,5 +44,5 @@ const newBoardPayload = {
   <div class="flex">
     <BoardCard v-for="board in boards" :key="board.id" :board="board" />
   </div>
-  <p v-if="loading">Loading...</p>
+  <AppLoader v-if="loading" :overlay="true" />
 </template>

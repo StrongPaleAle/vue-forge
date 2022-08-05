@@ -1,92 +1,89 @@
 <script setup lang="ts">
-import { toRefs, computed, ref } from "vue";
+import { toRefs, computed } from "vue";
 import type { Task, Board } from "@/types";
 import { useAlerts } from "@/stores/alerts";
-//import AppImageDropzone from "../../components/AppImageDropzone.vue";
-import { useRouter } from "vue-router";
+import { useQuery, useMutation } from "@vue/apollo-composable";
+import getBoardQuery from "@/graphql/queries/board.query.gql";
+import boardsQuery from "@/graphql/queries/boards.query.gql";
+import deleteBoardMutation from "@/graphql/mutations/deleteBoard.mutation.gql";
+import updateBoardMutation from "@/graphql/mutations/updateBoard.mutation.gql";
 import { v4 as uuidv4 } from "uuid";
-import { useMutation  } from "@vue/apollo-composable";
-import addTaskMutation from "@/graphql/mutations/addTask.mutation.gql";
-import AppPageHeading from "../../components/AppPageHeading.vue";
-import BoardMenu from "../../components/BoardMenu.vue";
+import { useRouter } from "vue-router";
 
 const alerts = useAlerts();
 const router = useRouter();
+
 // Define Props
 const props = defineProps<{
   id: string;
 }>();
 const { id: boardId } = toRefs(props);
 
-const {mutate: crateTaskOnBoard, onDone: OnDoneCreatingTask, onError:  OnErrorCreatingTask} = useMutation(addTaskMutation)
+// Init Page Data with Board and tasks
+const {
+  result: boardData,
+  loading: loadingBoard,
+  onError: onBoardError,
+} = useQuery(getBoardQuery, { id: boardId.value });
+onBoardError(() => alerts.error("Error loading board"));
+const board = computed(() => boardData.value?.board || null);
+const tasks = computed(() => board.value?.tasks?.items);
 
-let taskResolve = (task: Task) => {};
-let taskReject = (message: Error) => {};
+// handle board updates
+const { mutate: updateBoard } = useMutation(updateBoardMutation);
 
-const board = ref({
-  id: boardId?.value || "1",
-  title: "Let's have an amazing time at Vue.js forge!! 🍍",
-  order: JSON.stringify([{ id: "1", title: "backlog 🌴", taskIds: ["1", "2"] }]),
-});
-const tasks = ref<Partial<Task>[]>([
+//handle delete board
+const { mutate: deleteBoard, onError: onErrorDeletingBoard } = useMutation(
+  deleteBoardMutation,
   {
-    id: "1",
-    title: "Code like mad people!",
-    description: "Race against the clock",
-    dueAt: new Date(),
-  },
-  {
-    id: "2",
-    title: "Push clean code",
-    description: "Test and review code",
-    dueAt: new Date(),
-  },
-]);
+    update(cache, { data: { boardDelete } }) {
+      console.log(boardDelete);
+      cache.updateQuery({ query: boardsQuery }, (res) => ({
+        boardsList: {
+          items: res.boardsList.items.filter(
+            (b: Board) => b.id !== boardId.value
+          ),
+        },
+      }));
+    },
+  }
+);
+onErrorDeletingBoard(() => alerts.error("Error deleting board"));
+async function deleteBoardIfConfirmed() {
+  const yes = confirm("Are you sure you want to delete this board?");
+  if (yes) {
+    await deleteBoard({ id: boardId.value });
+    router.push("/");
+    alerts.success(`Board successfully deleted`);
+  }
+}
 
-const addTask = async (task: Task) => {
+function addTask(task: Task) {
   return new Promise((resolve, reject) => {
-    taskResolve = resolve;
-    taskReject = reject;
-    resolve(crateTaskOnBoard({
-      boardId: boardId?.value,
+    const taskWithId = {
       ...task,
-    })) 
+      id: uuidv4(),
+    };
+    tasks.value.push(taskWithId);
+    resolve(taskWithId);
   });
-};
-
-OnErrorCreatingTask((error) => { 
-  taskReject(error);
-  alerts.error("Error creating task!");
 }
-)
-OnDoneCreatingTask((res) => {
-  taskResolve(res.data.boardUpdate.tasks.items[0]);
-  alerts.success("Task created!");
-}
-)
-
-const updateBoard = (b: { id: string; title: string; order: string }) => {
-  board.value = b;
-  alerts.success("Board updated!");
-};
-const deleteBoardIfConfirmed = () => {
-  console.log("delete board");
-};
 </script>
-
 <template>
-<div>
-  <AppPageHeading>
-    {{ board.title }}
-  </AppPageHeading>
-   <BoardMenu :board="board" @deleteBoard="deleteBoardIfConfirmed"/>
-  <BoardDragAndDrop
-    :tasks="tasks"
-    :board="board"
-    @update="updateBoard"
-    :addTask="addTask"
-  />
- 
-</div>
-  
+  <div v-if="board">
+    <div class="flex justify-between">
+      <AppPageHeading>
+        {{ board.title }}
+      </AppPageHeading>
+      <BoardMenu :board="board" @deleteBoard="deleteBoardIfConfirmed" />
+    </div>
+
+    <BoardDragAndDrop
+      :board="board"
+      :tasks="tasks"
+      @update="updateBoard"
+      :addTask="addTask"
+    />
+  </div>
+  <AppLoader v-if="loadingBoard" :overlay="true" />
 </template>
