@@ -32,7 +32,7 @@ const shuffleTeam = computed(() => shuffleArray(team));
 </script>
 
 <template>
-  <div class="p-4 border-bottom border-2 flex justify-between" style="margin: -1px">
+  <div class="p-4 border-bottom border-2 flex justify-between">
     <img
       src="https://vuejsforge.com/images/logo.svg"
       width="150"
