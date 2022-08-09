@@ -1,6 +1,6 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+.aspect-video {
+    aspect-ratio: 16 / 9;
+  }
 
 .sortable-chosen{
     opacity: 0.3;

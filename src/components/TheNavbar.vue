@@ -35,8 +35,7 @@ const shuffleTeam = computed(() => shuffleArray(team));
   <div class="p-4 border-bottom border-2 flex justify-between">
     <img
       src="https://vuejsforge.com/images/logo.svg"
-      width="150"
-      class="max-w-none"
+      class="max-w-none w-150px"
       alt="Vue.js Forge"
     />
     <div>
