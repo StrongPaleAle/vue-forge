@@ -109,7 +109,7 @@ const handleNewComment = () => {
           ></div>
 
           <strong>Task</strong>
-          <pre>{{ taskCopy.dueAt }}</pre>
+          <pre>{{ taskCopy }}</pre>
           <strong>Comments</strong>
           <pre>{{ comments }}</pre>
           <strong>Labels</strong>
