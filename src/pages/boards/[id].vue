@@ -106,7 +106,8 @@ onDoneCreatingTask((res) => {
 });
 </script>
 <template>
-  <div v-if="board">
+  <div>
+    <div v-if="board">
     <div class="flex justify-between">
       <AppPageHeading>
         <input
@@ -128,4 +129,6 @@ onDoneCreatingTask((res) => {
     />
   </div>
   <AppLoader v-if="loadingBoard" :overlay="true" />
+  <RouterView />
+  </div>
 </template>

@@ -30,6 +30,7 @@
     "@progress/kendo-theme-default": "^5.5.0",
     "@progress/kendo-vue-animation": "^3.4.0",
     "@progress/kendo-vue-buttons": "^3.4.0",
+    "@progress/kendo-vue-dateinputs": "^3.4.3",
     "@progress/kendo-vue-dialogs": "^3.4.0",
     "@progress/kendo-vue-editor": "^3.4.0",
     "@progress/kendo-vue-form": "^3.4.0",
