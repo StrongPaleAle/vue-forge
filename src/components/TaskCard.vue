@@ -1,6 +1,9 @@
 <script setup lang="ts">
 import type { Task } from "@/types";
+import { ref, toRefs, computed } from "vue";
 import { useRoute } from "vue-router";
+import taskQuery from "@/graphql/queries/task.query.gql";
+import { useQuery } from "@vue/apollo-composable";
 import {
   Card,
   CardTitle,
@@ -15,18 +18,36 @@ const props = defineProps<{
   task: Task;
 }>();
 
-const date = useDateFormat(props.task.dueAt, "MM/DD");
+
+const {
+  result: taskData,
+  onResult: onTaskLoad,
+} = useQuery(
+  taskQuery,
+  { id: props.task.id },
+  {
+    fetchPolicy: "cache-and-network",
+  }
+);
+const task = computed(() => taskData.value?.task || null);
+
+onTaskLoad(() => {
+  taskCopy.value = JSON.parse(JSON.stringify(taskData.value?.task));
+});
+const taskCopy = ref<Partial<Task> | null>(null);
+
+const dateFormat = "MM/DD";
 
 const route = useRoute();
 </script>
 
 <template>
-  <RouterLink :to="`/boards/${route.params.id}/tasks/${task.id}`">
+  <RouterLink :to="`/boards/${route.params.id}/tasks/${props.task.id}`">
     <Card class="p-5 bg-white hover-card">
       <CardHeader>
         <div class="flex justify-between">
           <CardTitle>
-            {{ task.title }}
+            {{ task?.title }}
           </CardTitle>
           <Avatar type="image" size="medium" shape="circle">
             <img
@@ -37,13 +58,13 @@ const route = useRoute();
         </div>
         <CardSubtitle>
           <chip
-            v-if="task.dueAt"
-            :text="date"
+            v-if="task?.dueAt"
+            :label="`Due ${useDateFormat(task.dueAt, dateFormat)}`"
             value="chip"
             rounded="full"
             icon="k-i-clock"
             theme-color="info"
-          />
+          /> 
         </CardSubtitle>
       </CardHeader>
     </Card>
