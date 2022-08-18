@@ -1,0 +1,16 @@
+mutation addCommentToTask($taskId: ID!, $message: String) {
+  taskUpdate(
+    filter: { id: $taskId }, 
+    data: { comments: { create: [{message: $message}] }}
+    ) {
+    id
+    comments{
+      items{
+        id
+        message
+      }
+      
+    }
+    
+  }
+}

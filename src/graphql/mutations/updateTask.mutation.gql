@@ -1,0 +1,9 @@
+mutation updateTask($id: ID, $title: String, description: String, dueAt: Date) {
+  taskUpdate(filter: { id: $id }, data: { title: $title }) {
+    id
+    title
+    description
+    dueAt
+    
+  }
+}
