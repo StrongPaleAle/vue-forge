@@ -4,15 +4,25 @@ query task($id: ID!) {
     title
     description
     dueAt
+    image {
+      id
+      downloadUrl
+    }
     labels {
       items {
         id
         label
         color
+        tasks{
+          items{
+            id
+          }
+        }
       }
     }
     comments {
       items {
+        id
         message
       }
     }

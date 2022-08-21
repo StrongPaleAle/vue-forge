@@ -3,7 +3,11 @@ import { ref, watch } from "vue";
 import { Input as KInput } from "@progress/kendo-vue-inputs";
 import { Button as KButton } from "@progress/kendo-vue-buttons";
 import type { Label } from "@/types";
-import { v4 as uuidv4 } from "uuid";
+import { useQuery, useMutation } from "@vue/apollo-composable";
+import { useAlerts } from "@/stores/alerts";
+import labelsQuery from "@/graphql/queries/labels.query.gql";
+import deleteLabelMutation from "@/graphql/mutations/deleteLabel.mutation.gql";
+const alerts = useAlerts();
 type L = Partial<Label>;
 // props
 const props = defineProps<{
@@ -32,7 +36,7 @@ function clone(object: Record<string, any>) {
   return JSON.parse(JSON.stringify(object));
 }
 function handleCreate() {
-  const label = { ...newLabel.value, id: uuidv4() };
+  const label = { ...newLabel.value};
   emit("create", clone(label));
   labels.value?.push(label);
   emit("labelsUpdate", clone(labels.value));
@@ -43,11 +47,32 @@ function handleUpdate(labelText: string, index: number) {
   labels.value[index].label = labelText;
   emit("labelsUpdate", clone(labels.value));
 }
-function handleDelete(label: L) {
-  labels.value = labels.value?.filter((l) => l.id !== label.id);
-  emit("delete", clone(label));
-  emit("labelsUpdate", clone(labels.value));
+//handle delete board
+const { mutate: deleteLabel, onError: onErrorDeletingLabel } = useMutation(
+  deleteLabelMutation,
+  {
+    update(cache, mutationResult) {
+      
+      cache.updateQuery({ query: labelsQuery }, (res) => ({
+        boardsList: {
+          items: res.labelsList?.items.filter(
+            (l: Label) => l.id !== mutationResult.data?.deleteLabel?.id
+          ),
+        },
+      }));
+    },
+  }
+);
+onErrorDeletingLabel(() => alerts.error("Error deleting board"));
+async function handleDelete(label: L) {
+  const yes = confirm("Are you sure you want to delete this label?");
+  if (yes) {
+    await deleteLabel({ id: label.id });
+    emit("delete", clone(label));
+    alerts.success(`Board successfully deleted`);
+  }
 }
+
 function handleToggle(label: L) {
   if (selected.value?.map((l) => l.id).includes(label.id)) {
     selected.value = selected.value.filter((l) => l.id !== label.id);

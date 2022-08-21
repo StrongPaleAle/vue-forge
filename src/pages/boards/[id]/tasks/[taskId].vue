@@ -8,18 +8,24 @@ import { Editor as KEditor } from "@progress/kendo-vue-editor";
 import { TextArea as KTextArea, Input as KInput } from "@progress/kendo-vue-inputs";
 import { ref, toRefs, computed } from "vue";
 import { Calendar as KCalendar } from "@progress/kendo-vue-dateinputs";
-import taskQuery from "@/graphql/queries/task.query.gql";
 import { useQuery, useMutation } from "@vue/apollo-composable";
 import { useAlerts } from "@/stores/alerts";
+import taskQuery from "@/graphql/queries/task.query.gql";
+import labelsQuery from "@/graphql/queries/labels.query.gql";
 import updateTaskMutation from "@/graphql/mutations/updateTask.mutation.gql";
 import addCommentToTask from "@/graphql/mutations/addCommentToTask.mutation.gql";
+import addLabelToTask from "@/graphql/mutations/addLabelToTask.mutation.gql";
+import attachImageToTask from "@/graphql/mutations/attachImageToTask.mutation.gql";
 import type { Comment, Label, Task } from "@/types";
+
+
 const props = defineProps<{
   taskId: string;
 }>();
 const { taskId } = toRefs(props);
 const alerts = useAlerts();
-// Init page data (board with tasks)
+
+// TASK QUERY
 const {
   result: taskData,
   loading: loadingTask,
@@ -33,28 +39,59 @@ const {
   }
 );
 onTaskError(() => alerts.error("Error loading task"));
+
 const task = computed(() => taskData.value?.task || null);
 // convert to mutatable data to use with form
 onTaskLoad(() => {
   taskCopy.value = JSON.parse(JSON.stringify(taskData.value?.task));
-  labels.value = JSON.parse(JSON.stringify(taskData.value.task.labels.items));
+  TaskLabels.value = JSON.parse(JSON.stringify(taskData.value.task.labels.items));
   
   comments.value = JSON.parse(
     JSON.stringify(taskData.value.task.comments.items)
   );
-  taskCopy.labels = labels.value;
+  dateObject.value = new Date(task?.value.dueAt);
   
 });
+
+// LABELS QUERY§
+
+const { 
+  result: labelsData, 
+  onError: onLabelsError, 
+  onResult: onLabelsLoad 
+  } = useQuery(
+    labelsQuery,
+    {
+      fetchPolicy: "cache-and-network",
+    });
+
+
+onLabelsLoad(() => {
+  
+  labelsCopy.value = JSON.parse(JSON.stringify(labelsData?.value?.labelsList?.items));
+  
+  
+});
+
+onLabelsError(() => alerts.error("Error loading labels"));
+
+
+// Viariables
+
 const taskCopy = ref<Partial<Task> | null>(null);
-const labels = ref<Partial<Label>[]>([]);
+const TaskLabels = ref<Partial<Label>[]>([]);
+const labelsCopy = ref<Partial<Label>[]>([]);
 const comments = ref<Partial<Comment>[]>([]);
 const newComment = ref("");
+const dateObject = ref();
 const editorIncrementToRerender = ref(0);
 
 
+// ADD COMMENT TO TASK MUTATION
 const { mutate: addComment, onDone: onCommentAdded } = useMutation(
   addCommentToTask
 );
+
 const handleNewComment = () => {
   if (!newComment.value) return;
   comments.value.push({ message: newComment.value });
@@ -64,8 +101,40 @@ const handleNewComment = () => {
   
 };
 
+onCommentAdded(() => alerts.success("Comment successfully added!"));
 
+// ADD LABEL TO TASK MUTATION
+const { mutate: addLabel,  onDone: onLabelAdded, onError: onErrorAddLabel } = useMutation(
+  addLabelToTask,
+    {
+      update(cache) {
+        cache.updateQuery({ query: taskQuery}, (data) => {
+          if (!data) return;
+          const task = data.task;
+          if (!task) return;
+          task.value = { ...task.value, ...taskCopy.value };
+          return data;
+        });
+      },
+    }
+);
+onLabelAdded((data) => {
+  alerts.success("Label successfully added!");
+  const label = data.data.taskUpdate.labels.items[data.data.taskUpdate.labels.items.length - 1];
 
+  labelsCopy.value.push(label);
+  });
+const handleAddLabel = (evt: any) =>{
+
+  addLabel({taskId: taskId.value, label: evt.label, color: evt.color});
+  
+  
+}
+const handleRemoveLabel = (evt: any) =>{
+  const label = labelsCopy.value.find((l) => l.id === evt.id);
+  if (!label) return;
+  labelsCopy.value = labelsCopy.value.filter((l) => l.id !== evt.id);
+}
 
 // handle task updates
 const { mutate: updateTask, onDone: onTaskUpdated,onError: onErrorUpdateTask } =
@@ -73,30 +142,62 @@ const { mutate: updateTask, onDone: onTaskUpdated,onError: onErrorUpdateTask } =
     updateTaskMutation,
     {
       update(cache) {
-        cache.updateQuery({ query: taskQuery}, (data) => ({
-         
-            ...data,
-            ...taskCopy.value,
-          
-        }));
+        cache.updateQuery({ query: taskQuery}, (data) => {
+          if (!data) return;
+          const task = data.task;
+          if (!task) return;
+          task.value = { ...task.value, ...taskCopy.value };
+          return data;
+        });
       },
     }
   );
 
   
-const updateTaskOnClick = (title: string, description: string, date: Date) => {
+const updateTaskOnClick = (title: string, description: string, dueAt: Date) => {
   
-  let UpId = taskId.value;
-  updateTask({ id: taskId.value, title, description });
+  const dueString = dueAt.toISOString();
+  console.log(title, description, dueString);
+  taskCopy.dueAt = dueString;
+  updateTask({ id: taskId.value, title, description, dueAt });
   
 };
+
 onErrorUpdateTask((error) => {
   console.error(error.message);
   alerts.error("Error updating task")
   
   });
+
 onTaskUpdated(() => alerts.success("Task successfully updated!"));
-onCommentAdded(() => alerts.success("Comment successfully added!"));
+
+const {
+  mutate: attachImageTask,
+  onError: errorAttachingImage,
+  onDone: onImageAttached,
+  loading: imageLoading,
+} = useMutation(attachImageToTask,
+  {
+    update(cache) {
+      cache.updateQuery({ query: taskQuery}, (data) => {
+        if (!data) return;
+        const task = data.task;
+        if (!task) return;
+        task.value = { ...task.value, ...taskCopy.value };
+        return data;
+      });
+    },
+  }
+);
+errorAttachingImage((error) => {
+  console.log(error);
+  alerts.error("Error setting board image");
+});
+onImageAttached((result) => {
+  alerts.success("Image successfully attached!");
+});
+
+
 </script>
 
 <template>
@@ -149,8 +250,9 @@ onCommentAdded(() => alerts.success("Comment successfully added!"));
                 ['Link', 'Unlink', 'InsertImage', 'ViewHtml'],
               ]"
               :content-style="{
-                height: '200px',
+                height: '200px'
               }"
+              class="mb-5"
             />
             <KButton :theme-color="'primary'" @click="handleNewComment"
               >Add Comment</KButton
@@ -164,30 +266,45 @@ onCommentAdded(() => alerts.success("Comment successfully added!"));
           ></div>
 
           <strong>Task</strong>
-          <pre>{{ taskCopy }}</pre>
-          <!-- <strong>Comments</strong>
-          <pre>{{ comments }}</pre> -->
+          <pre class="max-w-64">{{ taskCopy }}</pre>
+          
           <strong>Labels</strong>
-          <pre>{{ labels }}</pre>
+          <pre>{{ labelsCopy }}</pre>
           
         </main>
         <aside
-          class="pl-5 sm:w-[300px] border-t-gray-300 border-t-2 pt-5 mt-5 sm:border-t-0"
+          class="pl-5 sm:w-[300px] border-t-gray-300 border-t-2 sm:border-t-0"
         >
           <ul class="m-auto">
+            <li>
+            <strong>Task Image</strong>
+            <AppImageDropzone
+              class="aspect-video w-56"
+              :image="taskCopy.image?.downloadUrl"
+              :loading="imageLoading"
+              @upload="
+                attachImageTask({
+                  id: taskId,
+                  imageId: $event.id,
+                })
+              "
+            />
+          </li>
             <li class="my-3">
               <strong class="text-xs mb-2 block">Task Labels</strong>
               <AppLabelsPicker
-                :labels="[...labels]"
-                :selected="labels"
-                @selectionUpdate="labels = $event"
+                :labels="[...labelsCopy]"
+                :selected="TaskLabels"
+                @selectionUpdate="TaskLabels = $event"
+                @create="handleAddLabel($event)"
+                @delete="handleRemoveLabel($event)"
               />
             </li>
             <li class="my-3">
               <strong class="text-xs mb-2 block" for="calendar"
                 >Task Due Date</strong
               >
-              <KCalendar v-model="taskCopy.dueAt" />
+              <KCalendar :defaultValue="dateObject" v-model="dateObject" />
             </li>
           </ul>
         </aside>
@@ -196,7 +313,7 @@ onCommentAdded(() => alerts.success("Comment successfully added!"));
         <KButton @click="$router.push(`/boards/${$route.params.id}`)"
           >Cancel</KButton
         >
-        <KButton theme-color="primary" @click="updateTaskOnClick(taskCopy?.title, taskCopy?.description, taskCopy?.dueAt)">Save Task</KButton>
+        <KButton theme-color="primary" @click="updateTaskOnClick(taskCopy?.title, taskCopy?.description, dateObject)">Save Task</KButton>
       </KDialogActionsBar>
     </KDialog>
   </div>

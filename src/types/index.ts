@@ -36,10 +36,12 @@ export interface Column {
 export interface Task extends Resource8base {
   title: string;
   description: string;
-  labels: Label[];
   dueAt: Date;
+  labels?: Label[];
+  
 
   // relationships
+  image?: Partial<File>;
   board?: Partial<Board>;
   comments?: Partial<Comment>[];
 }

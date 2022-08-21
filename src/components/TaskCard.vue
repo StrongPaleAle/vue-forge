@@ -8,11 +8,12 @@ import {
   Card,
   CardTitle,
   CardHeader,
+  CardFooter,
   Avatar,
   CardSubtitle,
 } from "@progress/kendo-vue-layout";
 import { Chip } from "@progress/kendo-vue-buttons";
-import { useDateFormat } from "@vueuse/core";
+import { useNow, useDateFormat } from "@vueuse/core";
 
 const props = defineProps<{
   task: Task;
@@ -33,40 +34,63 @@ const task = computed(() => taskData.value?.task || null);
 
 onTaskLoad(() => {
   taskCopy.value = JSON.parse(JSON.stringify(taskData.value?.task));
+  dateObject.value = new Date(task?.value.dueAt);
+  
+  
+  
 });
 const taskCopy = ref<Partial<Task> | null>(null);
+const dateObject = ref();
+const dueAt = useDateFormat(dateObject, "MM/DD");
 
-const dateFormat = "MM/DD";
+
 
 const route = useRoute();
 </script>
 
 <template>
-  <RouterLink :to="`/boards/${route.params.id}/tasks/${props.task.id}`">
-    <Card class="p-5 bg-white hover-card">
-      <CardHeader>
+  <RouterLink class="hover-card" :to="`/boards/${route.params.id}/tasks/${props.task.id}`">
+    <Card class=" bg-white ">
+      <div class="relative">
+          <AppImage
+        v-if="taskCopy?.image"
+        :src="taskCopy?.image?.downloadUrl"
+      />
+      </div>
+      
+        <CardHeader>
+          <div v-if="taskCopy?.labels?.items?.length > 0" class="flex flex-row flex-wrap gap-1 mb-2">
+            <span
+              v-for="label in taskCopy?.labels?.items"
+              :class="`bg-${label.color}-500`"
+              class="inline-block h-1 w-8 rounded-full"
+            >
+            </span>
+          </div>
+        
         <div class="flex justify-between">
           <CardTitle>
             {{ task?.title }}
+    
           </CardTitle>
-          <Avatar type="image" size="medium" shape="circle">
-            <img
-              style="width: 45px; height: 45px"
-              src="https://pickaface.net/gallery/avatar/unr_sample_161118_2054_ynlrg.png"
-            />
-          </Avatar>
+          
         </div>
-        <CardSubtitle>
-          <chip
+      </CardHeader>
+      <CardFooter>
+        <chip
             v-if="task?.dueAt"
-            :label="`Due ${useDateFormat(task.dueAt, dateFormat)}`"
+            :label="`Due ${dueAt}`"
+            :text="`Due ${dueAt}`"
             value="chip"
             rounded="full"
             icon="k-i-clock"
             theme-color="info"
+            class="text-xs"
           /> 
-        </CardSubtitle>
-      </CardHeader>
+      </CardFooter>
+      
+      
+      
     </Card>
   </RouterLink>
 </template>

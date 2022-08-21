@@ -1,9 +1,8 @@
-mutation updateTask($id: ID, $title: String, description: String, dueAt: Date) {
-  taskUpdate(filter: { id: $id }, data: { title: $title }) {
+mutation updateTask($id: ID, $title: String, $description: String, $dueAt: DateTime) {
+  taskUpdate(filter: { id: $id }, data: { title: $title, description: $description, dueAt: $dueAt }) {
     id
     title
     description
     dueAt
-    
   }
 }

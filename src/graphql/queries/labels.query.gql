@@ -1,16 +1,12 @@
 query LabelsList {
   labelsList {
     items {
-      label{
-        id
-        label
-        color
-        tasks{
-          items{
-            task{
-              id
-            }
-          }
+      id
+      label
+      color
+      tasks{
+        items{
+          id
         }
       }
     }

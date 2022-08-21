@@ -1,0 +1,12 @@
+mutation attachImageToTask($id: ID!, $imageId: ID!) {
+  taskUpdate(
+    filter: { id: $id }
+    data: { image: { reconnect: { id: $imageId } } }
+  ) {
+    id
+    image {
+      id
+      downloadUrl
+    }
+  }
+}
