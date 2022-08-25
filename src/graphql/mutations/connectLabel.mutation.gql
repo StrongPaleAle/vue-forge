@@ -1,0 +1,7 @@
+mutation connectLabel($id: ID, $taskId: ID) {
+  labelUpdate(filter: { id: $id }, 
+  data: { tasks: { connect: { id: $taskId } } }
+  ) {
+    id
+  }
+}

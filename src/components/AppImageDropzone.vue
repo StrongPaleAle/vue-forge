@@ -8,6 +8,7 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{
   (e: "upload", payload: { id: string }): void;
+  (e: "deleteImage", payload: { url: any }): void;
 }>();
 // data
 const image = ref<string | File | null | undefined>(props.image);
@@ -34,6 +35,9 @@ async function handleFiles(files: FileList | File[] | null) {
   emit("upload", res?.data.fileCreate);
   uploadingToFilestack.value = false;
 }
+function handleDelete() {
+  emit("deleteImage", { url: src});
+}
 const { isOverDropZone } = useDropZone(dropZoneRef, onDrop);
 </script>
 
@@ -51,11 +55,19 @@ const { isOverDropZone } = useDropZone(dropZoneRef, onDrop);
         accept="image/png, image/jpeg"
         class="hidden"
         type="file"
-        @change="onFileSelect"
+        @change="onFileSelect($event)"
       />
     </label>
+
     <AppImage v-if="image" :src="src" />
     <template v-else>{{ "Click or drop to upload image" }}</template>
     <AppLoader v-if="loading || uploadingToFilestack" :overlay="true" />
+    <div class=" absolute top-0 -right-10 m-2">
+      <button
+        v-if="image"
+        class="k-icon k-i-trash"
+        @click.prevent="handleDelete()"
+      ></button>
+    </div>
   </div>
 </template>

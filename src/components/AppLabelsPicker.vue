@@ -1,19 +1,26 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { ref, toRef, watch, computed } from "vue";
 import { Input as KInput } from "@progress/kendo-vue-inputs";
 import { Button as KButton } from "@progress/kendo-vue-buttons";
 import type { Label } from "@/types";
 import { useQuery, useMutation } from "@vue/apollo-composable";
 import { useAlerts } from "@/stores/alerts";
 import labelsQuery from "@/graphql/queries/labels.query.gql";
+import labelCreateMutation from "@/graphql/mutations/createLabel.mutation.gql";
 import deleteLabelMutation from "@/graphql/mutations/deleteLabel.mutation.gql";
+import updateLabelMutation from "@/graphql/mutations/updateLabel.mutation.gql";
+import TaskQuery from "@/graphql/queries/task.query.gql";
+import connectLabelMutation from "@/graphql/mutations/connectLabel.mutation.gql";
+import disconnectLabelMutation from "@/graphql/mutations/disconnectLabel.mutation.gql";
 const alerts = useAlerts();
 type L = Partial<Label>;
 // props
 const props = defineProps<{
-  labels: L[];
+  selectId: string;
   selected: L[];
 }>();
+
+
 // emits
 const emit = defineEmits<{
   (e: "select", payload: L): void;
@@ -24,75 +31,193 @@ const emit = defineEmits<{
   (e: "selectionUpdate", payload: L[]): void;
 }>();
 // local data
-const labels = ref<L[]>(props.labels);
+const labelsCopy = ref<Partial<Label>[]>([]);
+const toDelete = ref<Partial<Label>>();
+const selectId  = ref(props.selectId);
 const selected = ref<L[]>(props.selected);
 const showCreate = ref(false);
 const newLabel = ref<L>({
   label: "",
   color: "red",
 });
+
+// LABELS QUERY§
+
+const { 
+  result: labelsData,
+  loading: loadingLabels,
+  onError: onLabelsError, 
+  onResult: onLabelsLoad 
+  } = useQuery(
+    labelsQuery,
+    {
+      fetchPolicy: "cache-and-network",
+    });
+
+
+onLabelsLoad(() => {
+  //console.log(labelsData.value);
+  labelsCopy.value = labelsData?.value?.labelsList?.items;
+  
+  
+});
+
+onLabelsError(() => alerts.error("Error loading labels"));
+
+const labels = computed(() => labelsData.value?.labelsList?.items || null);
 // functions
 function clone(object: Record<string, any>) {
   return JSON.parse(JSON.stringify(object));
 }
-function handleCreate() {
-  const label = { ...newLabel.value};
-  emit("create", clone(label));
-  labels.value?.push(label);
-  emit("labelsUpdate", clone(labels.value));
-  showCreate.value = false;
-  resetNewLabel();
-}
-function handleUpdate(labelText: string, index: number) {
-  labels.value[index].label = labelText;
+
+const {mutate: updateLabel, onDone: onLabelUpdated, onError: onErrorUpdateLabel} = useMutation(
+  updateLabelMutation
+);
+onLabelUpdated(() => {
+  alerts.success("Label updated");
+  
+} );
+
+onErrorUpdateLabel((error) => {
+  console.error(error.message)
+  alerts.error("Error updating label")
+  });
+
+function handleUpdate(labelText: string, id: string) {
+  console.log(labelText, id);
+  updateLabel({ id: id, label: labelText});
   emit("labelsUpdate", clone(labels.value));
 }
 //handle delete board
-const { mutate: deleteLabel, onError: onErrorDeletingLabel } = useMutation(
-  deleteLabelMutation,
-  {
-    update(cache, mutationResult) {
-      
+const { mutate: deleteLabel, onError: onErrorDeletingLabel, onDone: onLabelDeleted } = useMutation(
+  deleteLabelMutation,{
+    update(cache) {
       cache.updateQuery({ query: labelsQuery }, (res) => ({
-        boardsList: {
+        labelsList: {
           items: res.labelsList?.items.filter(
-            (l: Label) => l.id !== mutationResult.data?.deleteLabel?.id
+            (item: L) => item.id !== toDelete?.value?.id
           ),
         },
       }));
-    },
+    }
   }
 );
-onErrorDeletingLabel(() => alerts.error("Error deleting board"));
-async function handleDelete(label: L) {
+onErrorDeletingLabel(() => alerts.error("Error deleting label!"));
+onLabelDeleted(() => alerts.success("Label deleted!"));
+
+async function handleDelete(todeletelabel: L) {
+  toDelete.value = todeletelabel;
   const yes = confirm("Are you sure you want to delete this label?");
   if (yes) {
-    await deleteLabel({ id: label.id });
-    emit("delete", clone(label));
-    alerts.success(`Board successfully deleted`);
+    await deleteLabel({ id: todeletelabel.id });
+    emit("delete", clone(todeletelabel));
   }
 }
 
-function handleToggle(label: L) {
-  if (selected.value?.map((l) => l.id).includes(label.id)) {
-    selected.value = selected.value.filter((l) => l.id !== label.id);
+// ADD LABEL MUTATION
+
+const { mutate: addLabel,  onDone: onLabelAdded, onError: onErrorAddLabel  } = useMutation(labelCreateMutation, () => ({
+  update(cache, { data: { labelCreate } }) {
+    cache.updateQuery({ query: labelsQuery }, (res) => ({
+      labelsList: {
+        items: [...res.labelsList.items, labelCreate],
+      },
+    }));
+  },
+}));
+
+onLabelAdded(() => {
+  alerts.success("Label successfully added!");
+  
+  });
+
+function handleCreate() {
+  const label = { ...newLabel.value};
+  addLabel({label: label.label, color: label.color});
+  emit("create", clone(label));
+  showCreate.value = false;
+  resetNewLabel();
+}
+onErrorAddLabel(() => alerts.error("Error adding label"));
+
+const { mutate: connectLabel, onDone: onLabelConnected, onError: onErrorConnectLabel } = useMutation(
+  connectLabelMutation,
+  {
+    update(cache, {data}) {
+    
+      cache.updateQuery({ query: TaskQuery,
+      variables: {
+        id: selectId.value,
+      } }, 
+      (res) => ({
+        task: {
+          ...res.task,
+          labels:{
+            items: [...res.task.labels.items, data.labelUpdate]
+          }
+        }
+      }));
+    }
+  }
+);
+const { mutate: disconnectLabel, onDone: onLabelDisconnected, onError: onErrorDisconnectLabel } = useMutation(
+  disconnectLabelMutation,
+  {
+    update(cache, {data}) {
+      cache.updateQuery({ query: TaskQuery,
+      variables: {
+        id: selectId.value,
+      } }, 
+      (res) => ({
+        task: {
+          ...res.task,
+          labels:{
+            items: res.task.labels.items.filter(
+              (item: L) => item.id !== data.labelUpdate.id
+            )
+          }
+        }
+      }));
+    }
+  }
+);
+onLabelConnected(() => {
+  alerts.success("Label successfully updated!");
+}
+);
+onLabelDisconnected(() => {
+  alerts.success("Label successfully updated!");
+}
+);
+onErrorConnectLabel((error) => {
+  console.error(error.message);
+  alerts.error("Error updating label")
+  });
+onErrorDisconnectLabel((error) => {
+  console.error(error.message);
+  alerts.error("Error updating label")
+  });
+
+
+async function handleToggle(label: L) {
+  if (selected?.value.map((s) => s.id).includes(label.id)) {
+    console.log("disconnect " + label.id + " from " + selectId.value);
+    await disconnectLabel({ id: label.id, taskId: selectId.value });
+    console.log(label);
     emit("deselect", label);
   } else {
-    selected.value?.push(label);
+    console.log("connect " + label.id + " from " + selectId.value);
+    await connectLabel({ id: label.id, taskId: selectId.value });
+    console.log(label);
     emit("select", label);
   }
-  emit("selectionUpdate", clone(selected.value));
 }
+
 function resetNewLabel() {
   newLabel.value.label = "";
   newLabel.value.color = "red";
 }
-watch(
-  () => props.labels,
-  () => {
-    labels.value = props.labels;
-  }
-);
+
 watch(
   () => props.selected,
   () => {
@@ -101,7 +226,7 @@ watch(
 );
 </script>
 <template>
-  <div>
+  <div v-if="!loadingLabels">
     <!--make sure tailwind CSS colors are on safelist for this-->
     <button
       v-for="(label, index) in labels"
@@ -122,10 +247,7 @@ watch(
           class="w-3/4 bg-transparent ouline-none"
           type="text"
           :value="label.label"
-          @change="
-            handleUpdate(($event.target as HTMLInputElement).value, index),
-              ($event.target as HTMLInputElement).blur()
-          "
+          @keydown.enter="handleUpdate(($event.target as HTMLInputElement).value, label.id)"
         />
       </div>
       <button

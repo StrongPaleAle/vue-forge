@@ -26,5 +26,10 @@ query task($id: ID!) {
         message
       }
     }
+    board {
+      id
+      title
+      order
+    }
   }
 }

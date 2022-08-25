@@ -1,0 +1,7 @@
+mutation updateLabel($id: ID, $label: String) {
+  labelUpdate(filter: { id: $id }, data: { label: $label }) {
+    id
+    label
+    
+  }
+}

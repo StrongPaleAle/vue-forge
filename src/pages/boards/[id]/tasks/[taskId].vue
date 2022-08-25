@@ -10,13 +10,16 @@ import { ref, toRefs, computed } from "vue";
 import { Calendar as KCalendar } from "@progress/kendo-vue-dateinputs";
 import { useQuery, useMutation } from "@vue/apollo-composable";
 import { useAlerts } from "@/stores/alerts";
+import boardQuery from "@/graphql/queries/board.query.gql";
 import taskQuery from "@/graphql/queries/task.query.gql";
-import labelsQuery from "@/graphql/queries/labels.query.gql";
+
 import updateTaskMutation from "@/graphql/mutations/updateTask.mutation.gql";
 import addCommentToTask from "@/graphql/mutations/addCommentToTask.mutation.gql";
-import addLabelToTask from "@/graphql/mutations/addLabelToTask.mutation.gql";
+import deleteTaskMutation from "@/graphql/mutations/deleteTask.mutation.gql";
 import attachImageToTask from "@/graphql/mutations/attachImageToTask.mutation.gql";
+import deleteImage from "@/graphql/mutations/deleteImageFromTask.mutation.gql";
 import type { Comment, Label, Task } from "@/types";
+import { useRouter } from "vue-router";
 
 
 const props = defineProps<{
@@ -24,6 +27,7 @@ const props = defineProps<{
 }>();
 const { taskId } = toRefs(props);
 const alerts = useAlerts();
+const router = useRouter();
 
 // TASK QUERY
 const {
@@ -50,39 +54,21 @@ onTaskLoad(() => {
     JSON.stringify(taskData.value.task.comments.items)
   );
   dateObject.value = new Date(task?.value.dueAt);
-  
+  boardID.value = taskData.value?.task.board.id;
+  boardOrder.value = taskData.value?.task.board.order;
+  console.log(typeof boardOrder.value);
 });
 
-// LABELS QUERY§
-
-const { 
-  result: labelsData, 
-  onError: onLabelsError, 
-  onResult: onLabelsLoad 
-  } = useQuery(
-    labelsQuery,
-    {
-      fetchPolicy: "cache-and-network",
-    });
-
-
-onLabelsLoad(() => {
-  
-  labelsCopy.value = JSON.parse(JSON.stringify(labelsData?.value?.labelsList?.items));
-  
-  
-});
-
-onLabelsError(() => alerts.error("Error loading labels"));
 
 
 // Viariables
 
 const taskCopy = ref<Partial<Task> | null>(null);
 const TaskLabels = ref<Partial<Label>[]>([]);
-const labelsCopy = ref<Partial<Label>[]>([]);
 const comments = ref<Partial<Comment>[]>([]);
 const newComment = ref("");
+const boardID = ref("");
+const boardOrder = ref();
 const dateObject = ref();
 const editorIncrementToRerender = ref(0);
 
@@ -103,38 +89,7 @@ const handleNewComment = () => {
 
 onCommentAdded(() => alerts.success("Comment successfully added!"));
 
-// ADD LABEL TO TASK MUTATION
-const { mutate: addLabel,  onDone: onLabelAdded, onError: onErrorAddLabel } = useMutation(
-  addLabelToTask,
-    {
-      update(cache) {
-        cache.updateQuery({ query: taskQuery}, (data) => {
-          if (!data) return;
-          const task = data.task;
-          if (!task) return;
-          task.value = { ...task.value, ...taskCopy.value };
-          return data;
-        });
-      },
-    }
-);
-onLabelAdded((data) => {
-  alerts.success("Label successfully added!");
-  const label = data.data.taskUpdate.labels.items[data.data.taskUpdate.labels.items.length - 1];
 
-  labelsCopy.value.push(label);
-  });
-const handleAddLabel = (evt: any) =>{
-
-  addLabel({taskId: taskId.value, label: evt.label, color: evt.color});
-  
-  
-}
-const handleRemoveLabel = (evt: any) =>{
-  const label = labelsCopy.value.find((l) => l.id === evt.id);
-  if (!label) return;
-  labelsCopy.value = labelsCopy.value.filter((l) => l.id !== evt.id);
-}
 
 // handle task updates
 const { mutate: updateTask, onDone: onTaskUpdated,onError: onErrorUpdateTask } =
@@ -171,6 +126,8 @@ onErrorUpdateTask((error) => {
 
 onTaskUpdated(() => alerts.success("Task successfully updated!"));
 
+
+
 const {
   mutate: attachImageTask,
   onError: errorAttachingImage,
@@ -189,14 +146,82 @@ const {
     },
   }
 );
+
 errorAttachingImage((error) => {
   console.log(error);
-  alerts.error("Error setting board image");
+  alerts.error("Error setting task image");
 });
 onImageAttached((result) => {
   alerts.success("Image successfully attached!");
 });
 
+const { mutate: removeImageTask, onError: errorRemovingImage, onDone: onImageRemoved } = useMutation(deleteImage,
+  {
+    update(cache) {
+    
+      cache.updateQuery({ query: taskQuery,
+      variables: {
+        id: taskId.value,
+      } }, 
+      (res) => ({
+        task: {
+          ...res.task,
+          image: null
+        }
+      }));
+    }
+  }
+);
+errorRemovingImage((error) => {
+  console.log(error.message);
+  alerts.error("Error deleting task image");
+});
+async function handleDeleteImage(imageID: string) {
+  console.log(imageID);
+  const yes = confirm("Are you sure you want to delete this image?");
+  if (yes) {
+    
+    await removeImageTask({ id: taskId.value, imageId: imageID });
+    
+  }
+}
+onImageRemoved(() => {
+  alerts.success("Image successfully removed!");
+} );
+
+const {mutate: deleteTask, onError: errorDeletingTask} = useMutation(deleteTaskMutation,
+  {
+    update(cache) {
+      cache.updateQuery({ query: boardQuery,
+      variables: {
+        id: boardID.value,
+      } }, 
+      (res) => ({
+        board: {
+          ...res.board,
+          tasks: {
+            ...res.board.tasks,
+            items: res.board.tasks.items.filter(
+              (t: Task) => t.id !== taskId.value
+            )
+          }
+        }
+      }));
+    }
+  }
+);
+errorDeletingTask((error) => {
+  console.log(error.message);
+  alerts.error("Error deleting task");
+} );
+async function handleDeleteTask() {
+  const yes = confirm("Are you sure you want to delete this task?");
+  if (yes) {
+    await deleteTask({ id: taskId.value });
+    router.push(`/boards/${boardID.value}`);
+    alerts.success("Task successfully deleted!");
+  }
+}
 
 </script>
 
@@ -264,12 +289,9 @@ onImageAttached((result) => {
             :key="comment.message"
             v-html="comment.message"
           ></div>
-
-          <strong>Task</strong>
-          <pre class="max-w-64">{{ taskCopy }}</pre>
+          <pre class="max-w-lg">
+            {{ boardOrder }}</pre>
           
-          <strong>Labels</strong>
-          <pre>{{ labelsCopy }}</pre>
           
         </main>
         <aside
@@ -282,22 +304,23 @@ onImageAttached((result) => {
               class="aspect-video w-56"
               :image="taskCopy.image?.downloadUrl"
               :loading="imageLoading"
+              @deleteImage="removeImageTask({
+                  id: taskCopy?.image?.id
+                })"
               @upload="
                 attachImageTask({
                   id: taskId,
                   imageId: $event.id,
-                })
-              "
+                })"
+              
             />
           </li>
             <li class="my-3">
               <strong class="text-xs mb-2 block">Task Labels</strong>
               <AppLabelsPicker
-                :labels="[...labelsCopy]"
+                :selectId="taskId"
                 :selected="TaskLabels"
-                @selectionUpdate="TaskLabels = $event"
-                @create="handleAddLabel($event)"
-                @delete="handleRemoveLabel($event)"
+                
               />
             </li>
             <li class="my-3">
@@ -306,6 +329,10 @@ onImageAttached((result) => {
               >
               <KCalendar :defaultValue="dateObject" v-model="dateObject" />
             </li>
+            <li class="my-3">
+               <KButton @click="handleDeleteTask()" theme-color="danger"
+                >Delete Task</KButton>
+              </li>
           </ul>
         </aside>
       </div>

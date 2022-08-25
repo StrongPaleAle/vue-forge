@@ -1,4 +1,4 @@
-mutation deleteBoard($id: ID!) {
+mutation deleteLabel($id: ID!) {
   labelDelete(filter: { id: $id }, force: true) {
     success
   }

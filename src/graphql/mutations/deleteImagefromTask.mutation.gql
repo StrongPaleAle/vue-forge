@@ -1,0 +1,8 @@
+mutation deleteImage($id: ID!){ 
+  fileDelete(
+    filter: { id: $id },
+    force: true
+  ) {
+    success
+  }
+}

@@ -1,0 +1,12 @@
+mutation createLabel($label: String!, $color: String!) {
+  labelCreate(data:{label: $label, color: $color}){
+    id
+    label
+    color
+    tasks{
+        items{
+          id
+        }
+      }
+  }
+}

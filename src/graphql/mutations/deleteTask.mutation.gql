@@ -1,0 +1,5 @@
+mutation deleteTask($id: ID!) {
+  taskDelete(filter: { id: $id }, force: true) {
+    success
+  }
+}

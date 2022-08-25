@@ -90,14 +90,7 @@ const fakeLabelData = reactive({
               "
             />
           </li>
-          <li>
-            <AppLabelsPicker
-              :labels="fakeLabelData.existingLabels"
-              :selected="fakeLabelData.selectedLabels"
-              @labelsUpdate="fakeLabelData.existingLabels = $event"
-              @selectionUpdate="fakeLabelData.selectedLabels = $event"
-            />
-          </li>
+          
         </ul>
       </div>
     </KPopup>
